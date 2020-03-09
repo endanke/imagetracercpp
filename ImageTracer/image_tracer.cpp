@@ -9,6 +9,9 @@
 #include "image_tracer.hpp"
 #include <map>
 
+namespace IMGTrace
+{
+
 ImageTracer::ImageTracer() {}
 
 std::stringstream ImageTracer::processImage(uint8_t* pixels, int width, int height) {
@@ -21,13 +24,13 @@ std::stringstream ImageTracer::processImage(uint8_t* pixels, int width, int heig
     printf("ImageTracer - Color quantization\n");
     IndexedImage ii = colorQuantization(data);
     printf("ImageTracer - Creating layers\n");
-    std::vector<std::vector<std::vector<int>>> layers = layering(ii);
+    threeDim<int> layers = layering(ii);
     printf("ImageTracer - Scanning paths\n");
-    std::vector<std::vector<std::vector<std::vector<int>>>> pathScans = batchPathScan(layers);
+    fourDim<int> pathScans = batchPathScan(layers);
     printf("ImageTracer - Interpolating nodes\n");
-    std::vector<std::vector<std::vector<std::vector<double>>>> binternodes = batchInternodes(pathScans);
+    fourDim<double> binternodes = batchInternodes(pathScans);
     printf("ImageTracer - Tracing layers\n");
-    std::vector<std::vector<std::vector<std::vector<double>>>> tracedLayers = batchTraceLayers(binternodes, 10.0f, 10.0f);
+    fourDim<double> tracedLayers = batchTraceLayers(binternodes, 10.0f, 10.0f);
     ii.layers = tracedLayers;
     printf("ImageTracer - Done\n");
     
@@ -38,19 +41,16 @@ std::stringstream ImageTracer::processImage(uint8_t* pixels, int width, int heig
 IndexedImage ImageTracer::colorQuantization(ImageData img) {
     // Only check for black and white colors
     int colorCount = 2;
-    std::vector<std::vector<int>> palette(colorCount, std::vector<int>(4));
-    palette[0][0] = 0;
-    palette[0][1] = 0;
-    palette[0][2] = 0;
-    palette[0][3] = 255;
-    
-    palette[1][0] = 255;
-    palette[1][1] = 255;
-    palette[1][2] = 255;
-    palette[1][3] = 255;
+    std::vector<Color> palette(colorCount);
+    palette[0] = {
+        .r = 0, .g = 0, .b = 0, .a = 255
+    };
+    palette[1] = {
+        .r = 255, .g = 255, .b = 255, .a = 255
+    };
 
     // Creating indexed color array which has a boundary filled with -1 in every direction
-    std::vector<std::vector<int>> array(img.height+2, std::vector<int>(img.width+2,-1));
+    twoDim<int> array(img.height+2, std::vector<int>(img.width+2,-1));
 
     for(unsigned int i = 1; i < img.width+1; ++i){
         for(unsigned int j = 1; j < img.height+1; ++j){
@@ -82,12 +82,12 @@ IndexedImage ImageTracer::colorQuantization(ImageData img) {
 // 12  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓
 // 48  ░░  ░░  ░░  ░░  ░▓  ░▓  ░▓  ░▓  ▓░  ▓░  ▓░  ▓░  ▓▓  ▓▓  ▓▓  ▓▓
 //     0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15
-std::vector<std::vector<std::vector<int>>> ImageTracer::layering(IndexedImage ii) {
+threeDim<int> ImageTracer::layering(IndexedImage ii) {
     // Creating layers for each indexed color in arr
     //int val=0, aw = ii.array[0].length, ah = ii.array.length, n1,n2,n3,n4,n5,n6,n7,n8;
     int val=0, aw = ii.width, ah = ii.height, n1,n2,n3,n4,n5,n6,n7,n8;
     
-    std::vector<std::vector<std::vector<int>>> layers(ii.colorCount, std::vector<std::vector<int>>(ah, std::vector<int>(aw)));
+    threeDim<int> layers(ii.colorCount, twoDim<int>(ah, std::vector<int>(aw)));
 
     // Looping through all pixels and calculating edge node type
     for(int j=1; j<(ah-1); j++){
@@ -151,13 +151,13 @@ int pathscan_combined_lookup[16][4][4]  = {
 // ░░  ░░  ░░  ░░  ░▓  ░▓  ░▓  ░▓  ▓░  ▓░  ▓░  ▓░  ▓▓  ▓▓  ▓▓  ▓▓
 // 0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15
 //
-std::vector<std::vector<std::vector<std::vector<int>>>> ImageTracer::batchPathScan(std::vector<std::vector<std::vector<int>>> layers) {
+fourDim<int> ImageTracer::batchPathScan(threeDim<int> layers) {
     
-    std::vector<std::vector<std::vector<std::vector<int>>>> pathscans;
+    fourDim<int> pathscans;
 
     for (auto& arr : layers) {
-        std::vector<std::vector<std::vector<int>>> paths;
-        std::vector<std::vector<int>> thisPath;
+        threeDim<int> paths;
+        twoDim<int> thisPath;
         int px = 0, py = 0, w = arr[0].size(), h = arr.size(), dir = 0;
         bool pathfinished = true, holepath = false;
         int* lookuprow = pathscan_combined_lookup[0][0];
@@ -171,7 +171,7 @@ std::vector<std::vector<std::vector<std::vector<int>>>> ImageTracer::batchPathSc
                     px = i; py = j;
                     //printf("py: %d ", py);
                     //printf("j: %d \n", j);
-                    thisPath = std::vector<std::vector<int>>();
+                    thisPath = twoDim<int>();
                     pathfinished = false;
 
                     // fill paths will be drawn, but hole paths are also required to remove unnecessary edge nodes
@@ -215,19 +215,19 @@ std::vector<std::vector<std::vector<std::vector<int>>>> ImageTracer::batchPathSc
 }
 
 // 4. interpolating between path points for nodes with 8 directions ( East, SouthEast, S, SW, W, NW, N, NE )
-std::vector<std::vector<std::vector<std::vector<double>>>> ImageTracer::batchInternodes(std::vector<std::vector<std::vector<std::vector<int>>>> bPaths) {
-    std::vector<std::vector<std::vector<std::vector<double>>>> binternodes;
+fourDim<double> ImageTracer::batchInternodes(fourDim<int> bPaths) {
+    fourDim<double> binternodes;
 
     for (auto& paths : bPaths) {
-        std::vector<std::vector<std::vector<double>>> ins;
-        std::vector<std::vector<double>> thisinp;
+        threeDim<double> ins;
+        twoDim<double> thisinp;
         std::vector<double> thisPoint = std::vector<double>(2);
         std::vector<double> nextPoint = std::vector<double>(2);
         std::vector<int> pp1, pp2, pp3;
         int palen = 0, nextidx = 0, nextidx2 = 0;
         
         for (int pacnt = 0; pacnt < paths.size(); pacnt++) {
-            thisinp = std::vector<std::vector<double>>();
+            thisinp = twoDim<double>();
             palen = paths[pacnt].size();
             
             // pathpoints loop
@@ -307,16 +307,16 @@ std::vector<std::vector<std::vector<std::vector<double>>>> ImageTracer::batchInt
 // segment[5] , segment[6] : x3 , y3 for Q curve, should be 0.0 , 0.0 for L line
 //
 // path type is discarded, no check for path.size < 3 , which should not happen
-std::vector<std::vector<std::vector<std::vector<double>>>> ImageTracer::batchTraceLayers(std::vector<std::vector<std::vector<std::vector<double>>>> binternodes, float ltreshold, float qtreshold) {
-    std::vector<std::vector<std::vector<std::vector<double>>>> btbis;
+fourDim<double> ImageTracer::batchTraceLayers(fourDim<double> binternodes, float ltreshold, float qtreshold) {
+    fourDim<double> btbis;
     
     for (auto& internodepaths : binternodes) {
-        std::vector<std::vector<std::vector<double>>> btracedpaths;
+        threeDim<double> btracedpaths;
 
         for (auto& path : internodepaths) {
             int pcnt = 0, seqend = 0;
             double segtype1, segtype2;
-            std::vector<std::vector<double>> smp;
+            twoDim<double> smp;
             
             // Double [] thissegment;
             int pathlength = path.size();
@@ -365,8 +365,8 @@ std::vector<std::vector<std::vector<std::vector<double>>>> ImageTracer::batchTra
     return btbis;
 }
 
-std::vector<std::vector<double>> ImageTracer::fitseq(std::vector<std::vector<double>> path, float ltreshold, float qtreshold, int seqstart, int seqend) {
-    std::vector<std::vector<double>> segment;
+twoDim<double> ImageTracer::fitseq(twoDim<double> path, float ltreshold, float qtreshold, int seqstart, int seqend) {
+    twoDim<double> segment;
     std::vector<double> thisSegment;
     int pathlength = path.size();
 
@@ -535,7 +535,7 @@ std::stringstream ImageTracer::toSvgStringStream(IndexedImage ii) {
     // Z-index loop
     for (auto const& x : zindex) {
         auto value = x.second;
-        std::vector<std::vector<double>> segments = ii.layers[value[0]][value[1]];
+        twoDim<double> segments = ii.layers[value[0]][value[1]];
         std::string colorstr = value[0] == 0 ?
         "fill=\"rgb(255,255,255)\" stroke=\"rgb(0,0,0)\" opacity=\"1\" " :
         "fill=\"rgb(0,0,0)\" stroke=\"rgb(255,255,255)\" opacity=\"1\" ";
@@ -570,4 +570,6 @@ std::stringstream ImageTracer::toSvgStringStream(IndexedImage ii) {
     ss << "</svg>";
     
     return ss;
+}
+
 }

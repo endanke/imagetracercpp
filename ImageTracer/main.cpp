@@ -18,7 +18,7 @@
 #include <fstream>
 
 int main(int argc, const char * argv[]) {
-    ImageTracer tracer = ImageTracer();
+    IMGTrace::ImageTracer tracer = IMGTrace::ImageTracer();
     
     int width, height, bpp;
     unsigned char* rgb = stbi_load( "./testimages/11.png", &width, &height, &bpp, 3 );
