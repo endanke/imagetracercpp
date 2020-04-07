@@ -7,6 +7,7 @@
 //
 
 #include "image_tracer.hpp"
+#include "pdfgen.h"
 #include <map>
 
 namespace IMGTrace
@@ -34,6 +35,7 @@ std::stringstream ImageTracer::processImage(uint8_t* pixels, int width, int heig
     ii.layers = tracedLayers;
     printf("ImageTracer - Done\n");
     
+    exportPDF(ii);
     return toSvgStringStream(ii);
 }
 
@@ -502,16 +504,10 @@ bool mapContainsKey(std::map<double, std::vector<int>>& map, double key)
   return true;
 }
 
-std::stringstream ImageTracer::toSvgStringStream(IndexedImage ii) {
-    float scale = 1.0;
-    // SVG start
-    int w = (int) (ii.width * scale), h = (int) (ii.height * scale);
-    std::stringstream ss;
-    ss << "<svg " << "width=\"" << w << "\" height=\"" << h << "\" ";
-    ss << "version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">";
-
-    // creating Z-index
+std::map<double, std::vector<int>> createZIndex(IndexedImage ii) {
     std::map<double, std::vector<int>> zindex;
+    float scale = 1.0;
+    int w = (int) (ii.width * scale);
     double label;
     // Layer loop
     for (int k = 0; k < ii.layers.size(); k++) {
@@ -528,8 +524,18 @@ std::stringstream ImageTracer::toSvgStringStream(IndexedImage ii) {
           zindex[label][1] = pcnt;
       }
     }
+    return zindex;
+}
 
-    // Sorting Z-index is not required, TreeMap is sorted automatically
+std::stringstream ImageTracer::toSvgStringStream(IndexedImage ii) {
+    float scale = 1.0;
+    // SVG start
+    int w = (int) (ii.width * scale), h = (int) (ii.height * scale);
+    std::stringstream ss;
+    ss << "<svg " << "width=\"" << w << "\" height=\"" << h << "\" ";
+    ss << "version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">";
+
+    std::map<double, std::vector<int>> zindex = createZIndex(ii);
 
     // Drawing
     // Z-index loop
@@ -570,6 +576,68 @@ std::stringstream ImageTracer::toSvgStringStream(IndexedImage ii) {
     ss << "</svg>";
     
     return ss;
+}
+
+void ImageTracer::exportPDF(IndexedImage ii) {    
+    float scale = 1.0;
+    int w = (int) (ii.width * scale), h = (int) (ii.height * scale);
+    struct pdf_info info = { .creator = "", .producer = "",
+        .title = "", .author = "", .subject = "" };
+    struct pdf_doc *pdf = pdf_create(w, h, &info);
+    pdf_append_page(pdf);
+    
+    std::map<double, std::vector<int>> zindex = createZIndex(ii);
+    
+    for (auto const& x : zindex) {
+        auto value = x.second;
+        twoDim<double> segments = ii.layers[value[0]][value[1]];
+        
+        int operation_count = (int)segments.size() + 2;
+        struct pdf_path_operation *operations = (struct pdf_path_operation *)malloc(sizeof(struct pdf_path_operation) * operation_count);
+        float curr_x, prev_x = segments[0][1] * scale;
+        float curr_y, prev_y = segments[0][2] * scale;
+        
+        operations[0] = { .op = 'm', .x1 = prev_x, .y1 = h - prev_y };
+
+        for (int pcnt = 0; pcnt < segments.size(); pcnt++) {
+            if (segments[pcnt][0] == 1.0) {
+                curr_x = segments[pcnt][3] * scale;
+                curr_y = segments[pcnt][4] * scale;
+                operations[pcnt + 1] = { .op = 'l', .x1 = curr_x, .y1 = h - curr_y };
+            } else {
+                curr_x = segments[pcnt][5] * scale;
+                curr_y = segments[pcnt][6] * scale;
+                float xq1 = segments[pcnt][3] * scale;
+                float yq1 = segments[pcnt][4] * scale;
+                
+                float xc1 = prev_x + (xq1 - prev_x) * (2.0 / 3.0);
+                float yc1 = prev_y + (yq1 - prev_y) * (2.0 / 3.0);
+                float xc2 = curr_x + (xq1 - curr_x) * (2.0 / 3.0);
+                float yc2 = curr_y + (yq1 - curr_y) * (2.0 / 3.0);
+                
+                operations[pcnt + 1] = { .op = 'c', .x1 = xc1, .y1 = h - yc1,
+                    .x2 = xc2, .y2 = h - yc2, .x3 = curr_x, .y3 = h - curr_y
+                };
+            }
+            prev_x = curr_x;
+            prev_y = curr_y;
+        }
+        
+        operations[operation_count - 1] = { .op = 'h' };
+        
+        uint32_t fill_color = value[0] == 0 ? PDF_RGB(0xff, 0xff, 0xff) : PDF_RGB(0, 0, 0);
+        uint32_t stroke_color = value[0] != 0 ? PDF_RGB(0xff, 0xff, 0xff) : PDF_RGB(0, 0, 0);
+        pdf_add_custom_path(pdf, NULL, operations, operation_count, 1, stroke_color, fill_color);
+    }
+    
+    pdf_save(pdf, "./out/test.pdf");
+        
+    int err;
+    const char *err_str = pdf_get_err(pdf, &err);
+    if (err_str) {
+        fprintf(stderr, "PDF Error: %d - %s\n", err, err_str);
+    }
+    pdf_destroy(pdf);
 }
 
 }

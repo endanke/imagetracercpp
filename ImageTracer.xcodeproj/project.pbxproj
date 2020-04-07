@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		30492153241631E800FAD5F4 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30492152241631E800FAD5F4 /* main.cpp */; };
 		3049215E2416327A00FAD5F4 /* image_tracer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3049215C2416327A00FAD5F4 /* image_tracer.cpp */; };
+		30AB0FC2243C638000ED3EE0 /* pdfgen.c in Sources */ = {isa = PBXBuildFile; fileRef = 30AB0FC1243C638000ED3EE0 /* pdfgen.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,8 @@
 		3049216E241633B800FAD5F4 /* 3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = 3.png; sourceTree = "<group>"; };
 		3049216F241633B800FAD5F4 /* 1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = 1.png; sourceTree = "<group>"; };
 		3049217224163A6800FAD5F4 /* stb_image.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = "<group>"; };
+		30AB0FC0243C638000ED3EE0 /* pdfgen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pdfgen.h; path = PDFGen/pdfgen.h; sourceTree = SOURCE_ROOT; };
+		30AB0FC1243C638000ED3EE0 /* pdfgen.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pdfgen.c; path = PDFGen/pdfgen.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +72,7 @@
 				3049217224163A6800FAD5F4 /* stb_image.h */,
 				3049215C2416327A00FAD5F4 /* image_tracer.cpp */,
 				3049215D2416327A00FAD5F4 /* image_tracer.hpp */,
+				30AB0FBF243C637000ED3EE0 /* dependencies */,
 				3049215F241633B800FAD5F4 /* testimages */,
 			);
 			path = ImageTracer;
@@ -95,6 +99,15 @@
 				3049216F241633B800FAD5F4 /* 1.png */,
 			);
 			path = testimages;
+			sourceTree = "<group>";
+		};
+		30AB0FBF243C637000ED3EE0 /* dependencies */ = {
+			isa = PBXGroup;
+			children = (
+				30AB0FC1243C638000ED3EE0 /* pdfgen.c */,
+				30AB0FC0243C638000ED3EE0 /* pdfgen.h */,
+			);
+			path = dependencies;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -155,6 +168,7 @@
 			files = (
 				3049215E2416327A00FAD5F4 /* image_tracer.cpp in Sources */,
 				30492153241631E800FAD5F4 /* main.cpp in Sources */,
+				30AB0FC2243C638000ED3EE0 /* pdfgen.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

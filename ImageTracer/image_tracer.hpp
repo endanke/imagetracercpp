@@ -13,6 +13,7 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <map>
 
 namespace IMGTrace
 {
@@ -62,6 +63,7 @@ private:
     fourDim<double> batchTraceLayers(fourDim<double> binternodes, float ltreshold, float qtreshold);
     twoDim<double> fitseq(twoDim<double> path, float ltreshold, float qtreshold, int seqstart, int seqend);
     std::stringstream toSvgStringStream(IndexedImage ii);
+    void exportPDF(IndexedImage ii);
 
 };
 
